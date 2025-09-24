@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GetKey Menu</title>
+  <style>
+    :root{
+      --bg:#0b0f14; --card:#0f1620; --muted:#9aa6b2; --accent:#7dd3fc; --accent-2:#60a5fa; --success:#34d399;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;padding:24px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+      background:linear-gradient(180deg,var(--bg),#071019);color:#e6eef6;
+      -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+    }
+    .container{max-width:900px;margin:40px auto;padding:24px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;box-shadow:0 8px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    header{display:flex;align-items:center;gap:16px}
+    .logo{width:175px;height:70px;border-radius:360px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#04263b;font-size:16px}
+    h1{margin:0;font-size:18px}
+    p.lead{margin:px 0 18px;color:var(--muted);font-size:15px}
+
+    .row{display:flex;gap:16px}
+    .col{flex:1}
+    .card{background:var(--card);padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.02)}
+
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+    input[type="text"], textarea{
+      width:100%;padding:12px;border-radius:10px;background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:inherit;font-size:14px
+    }
+    textarea{min-height:108px;resize:vertical}
+
+    .controls{display:flex;gap:10px;margin-top:12px}
+    button{background:linear-gradient(180deg,var(--accent),var(--accent-2));border:none;padding:10px 10px;border-radius:10px;color:#04263b;font-weight:600;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);font-weight:600}
+    button.copy{display:flex;gap:8px;align-items:center}
+
+    .result{margin-top:12px;padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.03);}
+    .small{font-size:12px;color:var(--muted)}
+
+    .hint{margin-top:8px;font-size:12px;color:var(--muted)}
+
+    .toast{position:fixed;right:24px;bottom:24px;background:#041622;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 6px 24px rgba(2,6,23,0.6);color:var(--success);font-weight:600;display:none}
+
+    footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+
+    @media (max-width:720px){.row{flex-direction:column}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">KEY</div>
+      <div>
+        <h1>GetKey MenuFF</h1>
+        <p class="lead">Bạn có đọc kĩ hướng dẫn sử dụng ở bên dưới trước khi thực hành</p>
+      </div>
+    </header>
+
+    <div class="row" style="margin-top:0px">
+      <div class="col card">
+        <label for="urlInput">Link (URL) chứa <code>key=</code></label>
+        <textarea id="urlInput" placeholder="Ví dụ: https://vtthanhtungbtp13-afk.github.io/wedoutokey/?key=TungApi_gtVI6oqw"></textarea>
+        <div class="controls">
+          <button id="extractBtn">Trích xuất key</button>
+        </div>
+      </div>
+
+      <div class="col card">
+        <label for="keyInput">Key (editable)</label>
+        <input type="text" id="keyInput" placeholder="Chưa có key" />
+        <div class="controls" style="margin-top:10px">
+          <button class="copy" id="copyBtn">Sao chép key</button>
+
+        <div class="result" id="resultBox" style="margin-top:0px;display:none">
+          <div><strong>Giá trị key:</strong></div>
+          <div id="displayKey" style="word-break:break-all;margin-top:6px;font-weight:900;font-size:15px"></div>
+          <div class="small" style="margin-top:8px">Bạn có bấm nút sao chép key rồi về app <em>Use key</em> để loin key menu</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>Copyright © By TungAPI.vn</footer>
+  </div>
+
+  <div class="toast" id="toast">Đã sao chép!</div>
+
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const extractBtn = document.getElementById('extractBtn');
+    const fromLocationBtn = document.getElementById('fromLocationBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const keyInput = document.getElementById('keyInput');
+    const copyBtn = document.getElementById('copyBtn');
+    const useBtn = document.getElementById('useBtn');
+    const resultBox = document.getElementById('resultBox');
+    const displayKey = document.getElementById('displayKey');
+    const toast = document.getElementById('toast');
+
+    function parseKeyFromUrl(url){
+      try{
+        // Ensure it's a proper URL. If not, try to add a placeholder origin to parse params
+        let u;
+        if(/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url)){
+          u = new URL(url);
+        }else{
+          // treat as query string or path
+          if(url.trim().startsWith('?') || url.includes('key=')){
+            u = new URL('http://example.local/' + url.replace(/^\?/,''));
+          } else {
+            // fallback, try to find key= in the text
+            const match = url.match(/[?&]key=([^&\s]+)/);
+            return match ? decodeURIComponent(match[1]) : null;
+          }
+        }
+        const params = new URLSearchParams(u.search);
+        if(params.has('key')) return params.get('key');
+        // If not present in search, also check hash (after #)
+        if(u.hash){
+          const h = new URLSearchParams(u.hash.replace(/^#/,''));
+          if(h.has('key')) return h.get('key');
+        }
+        // fallback: try to regex-search whole string
+        const match = url.match(/\bkey=([^&\s]+)/);
+        return match ? decodeURIComponent(match[1]) : null;
+      }catch(e){
+        console.warn('parse error', e);
+        const match = url.match(/\bkey=([^&\s]+)/);
+        return match ? decodeURIComponent(match[1]) : null;
+      }
+    }
+
+    function showResult(key){
+      if(key==null || key===''){
+        resultBox.style.display = 'none';
+        displayKey.textContent = '';
+      } else {
+        resultBox.style.display = 'block';
+        displayKey.textContent = key;
+      }
+    }
+
+    function showToast(msg='Đã sao chép!'){
+      toast.textContent = msg; toast.style.display='block';
+      setTimeout(()=>{toast.style.display='none'},1600);
+    }
+
+    extractBtn.addEventListener('click', ()=>{
+      const url = urlInput.value.trim();
+      if(!url){ alert('Vui lòng nhập link hoặc URL chứa key='); return; }
+      const k = parseKeyFromUrl(url);
+      if(k) { keyInput.value = k; showResult(k); }
+      else { alert('Không tìm thấy tham số key trong chuỗi đã nhập.'); }
+    });
+
+    fromLocationBtn.addEventListener('click', ()=>{
+      const current = window.location.href;
+      const k = parseKeyFromUrl(current);
+      if(k) { keyInput.value = k; showResult(k); }
+      else { alert('URL hiện tại không có tham số key. Thử mở trang với ?key=YOUR_KEY'); }
+    });
+
+    clearBtn.addEventListener('click', ()=>{ urlInput.value=''; keyInput.value=''; showResult(''); });
+
+    copyBtn.addEventListener('click', async ()=>{
+      const text = keyInput.value || displayKey.textContent;
+      if(!text){ alert('Không có key để sao chép.'); return; }
+      try{
+        await navigator.clipboard.writeText(text);
+        showToast('Đã sao chép key');
+      }catch(e){
+        // fallback
+        const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+        try{ document.execCommand('copy'); showToast('Đã sao chép (fallback)'); }catch(err){ alert('Sao chép thất bại. Hãy copy thủ công:\n'+text); }
+        ta.remove();
+      }
+    });
+
+    useBtn.addEventListener('click', ()=>{
+      const v = keyInput.value.trim();
+      if(!v){ alert('Nhập hoặc dán giá trị key trước khi dùng.'); return; }
+      showResult(v);
+      // You can trigger other app logic here — e.g., save to localStorage
+      try{ localStorage.setItem('last_key', v); }catch(e){}
+    });
+
+    // On load, try to auto-fill if page has ?key=
+    window.addEventListener('DOMContentLoaded', ()=>{
+      const k = parseKeyFromUrl(window.location.href);
+      if(k){ keyInput.value = k; showResult(k); }
+      // also try to restore last used key
+      try{ const last = localStorage.getItem('last_key'); if(!keyInput.value && last){ keyInput.value = last; showResult(last); } }catch(e){}
+    });
+  </script>
+</body>
+</html>
